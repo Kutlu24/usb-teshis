@@ -3,6 +3,9 @@ import json, os, subprocess, tempfile
 from pathlib import Path
 
 
+MOUNTABLE = {"ext2", "ext3", "ext4", "xfs", "btrfs", "ntfs", "vfat", "exfat", "f2fs"}
+
+
 def classify(root):
     r = Path(root)
     if (r / "Windows/System32").is_dir() or (r / "WINDOWS/System32").is_dir():
@@ -58,6 +61,8 @@ def mount_all_readonly():
         fs = d.get("fstype")
         if d.get("type") not in ("part", "lvm", "disk") or not fs or d.get("mountpoint"):
             continue
+        if fs not in MOUNTABLE and fs not in ("BitLocker", "crypto_LUKS"):
+            continue   # iso9660 (açılış USB'si), swap, LVM üyesi vb.: taranacak işletim sistemi değil
         if fs in ("BitLocker",) or fs == "crypto_LUKS":
             notes.append(f"{d['name']}: şifreli ({fs}); anahtar olmadan okunamaz.")
             continue

@@ -6,13 +6,23 @@ T="$BOOT/usb-teshis"
 echo; echo "=== USB TEŞHİS başlıyor — disk(ler) SALT-OKUNUR bağlanacak, hiçbir şey değiştirilmez ==="
 [ -d "$T/usb_teshis" ] || { echo "Araç bulunamadı: $T"; exit 1; }
 
-# Raporlar için TESHIS bölümünü yazılabilir bağla; olmazsa RAM'e yaz
+# Raporlar için TESHIS bölümünü yazılabilir bağla. Bölüm YALNIZCA açılış USB'sinin kendi diskinde aranır:
+# taranan (güvenilmeyen) bir disk "TESHIS" etiketi taşıyıp rapor hedefi olamaz.
 OUT=""
-DEV=/dev/disk/by-label/TESHIS
-for i in 1 2 3 4 5; do [ -e "$DEV" ] && break; sleep 1; done
-if [ -e "$DEV" ]; then
-  mkdir -p /mnt/teshis
-  mount -o rw "$DEV" /mnt/teshis 2>/dev/null && mkdir -p /mnt/teshis/raporlar && OUT=/mnt/teshis/raporlar
+BSRC=$(findmnt -no SOURCE "$BOOT" 2>/dev/null)
+PK=""; [ -n "$BSRC" ] && PK=$(lsblk -no PKNAME "$BSRC" 2>/dev/null | head -1)
+if [ -n "$PK" ]; then
+  for i in 1 2 3 4 5; do
+    PART=$(lsblk -nrp -o NAME,LABEL,FSTYPE "/dev/$PK" 2>/dev/null | awk '$2=="TESHIS" && $3=="exfat"{print $1; exit}')
+    [ -n "$PART" ] && break; sleep 1
+  done
+  if [ -n "$PART" ]; then
+    mkdir -p /mnt/teshis
+    if mount -t exfat -o rw,nosuid,nodev,noexec "$PART" /mnt/teshis 2>/dev/null; then
+      if [ -L /mnt/teshis/raporlar ]; then echo "(!) raporlar bir sembolik bağ: kullanılmıyor."
+      else mkdir -p /mnt/teshis/raporlar && OUT=/mnt/teshis/raporlar; fi
+    fi
+  fi
 fi
 if [ -z "$OUT" ]; then
   OUT=/tmp/raporlar; mkdir -p "$OUT"
