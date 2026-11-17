@@ -58,7 +58,7 @@ code{{font-size:.8em;word-break:break-all}} table{{border-collapse:collapse}} td
 <h2>Kontrol EDİLEMEYENLER</h2><ul>{notes or '<li>—</li>'}</ul></html>""")
 
 
-ANSI = {"kritik": "\033[1;37;41m", "uyari": "\033[1;30;43m", "bilgi": "\033[1;37;44m", "ok": "\033[1;37;42m"}
+ANSI = {"kritik": "\033[1;37;41m", "uyari": "\033[0;30;43m", "bilgi": "\033[1;37;44m", "ok": "\033[1;37;42m"}
 
 
 def to_brief(report, top=5):

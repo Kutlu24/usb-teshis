@@ -56,13 +56,14 @@ def mount_all_readonly():
             yield from walk(d.get("children", []) or [])
     for d in walk(devs):
         fs = d.get("fstype")
-        if d.get("type") not in ("part", "lvm") or not fs or d.get("mountpoint"):
+        if d.get("type") not in ("part", "lvm", "disk") or not fs or d.get("mountpoint"):
             continue
         if fs in ("BitLocker",) or fs == "crypto_LUKS":
             notes.append(f"{d['name']}: şifreli ({fs}); anahtar olmadan okunamaz.")
             continue
         mp = tempfile.mkdtemp(prefix="teshis_")
-        opts = "ro,noexec,nosuid,nodev" + (",norecover" if fs in ("ext4", "ext3") else "")
+        # günlük (journal) tekrarı yapılmasın: diske hiçbir şey yazılmasın
+        opts = "ro,noexec,nosuid,nodev" + {"ext4": ",noload", "ext3": ",noload", "xfs": ",norecovery"}.get(fs, "")
         t = {"ntfs": "ntfs3"}.get(fs, fs)
         r = subprocess.run(["mount", "-t", t, "-o", opts, d["name"], mp], capture_output=True, text=True)
         if r.returncode != 0 and fs == "ntfs":

@@ -16,11 +16,16 @@ günlükleri okur ve Türkçe, öncelik sıralı bir rapor (HTML+TXT) üretir.
 Çıkış kodu: 0 temiz/uyarı, 1 kritik bulgu var, 2 çözümlenecek sistem yok.
 
 ## USB hazırlama (otomatik çalışan)
-1. **SystemRescue USB writer** ile ISO'yu yaz (yazılabilir FAT32 oluşturur; `dd` ile yazılan USB salt-okunur olur ve autorun eklenemez):
-   `sudo ./sysrescueusbwriter-x86_64.AppImage systemrescue-13.03-amd64.iso` (cihaz seç; USB TAMAMEN silinir).
-2. Aracı ve autorun'u kopyala (root gerekmez): `bash scripts/install_to_stick.sh /run/media/$USER/RESCUE1303`
-3. Arızalı PC'yi USB'den aç (Secure Boot kapalı). Araç kendiliğinden başlar: diskleri salt-okunur bağlar, tarar,
-   ekrana renkli özet (SORUN VAR / DİKKAT / TEMİZ) basar, ayrıntılı raporu USB'de `raporlar/` altına yazar.
+1. SystemRescue ISO'sunu indir ve doğrula (sha256). `sudo apt install xorriso` gerekir.
+2. Aracı ISO'ya göm (root gerekmez, BIOS+UEFI önyüklemesi korunur):
+   `bash scripts/build_iso.sh systemrescue-13.03-amd64.iso`  →  `dist/teshis.iso`
+3. USB'ye yaz (USB TAMAMEN silinir; cihaz adını `lsblk` ile kontrol et):
+   `sudo bash scripts/write_usb.sh /dev/sdX dist/teshis.iso`
+4. Arızalı PC'yi USB'den aç (Secure Boot kapalı). Araç kendiliğinden başlar: diskleri salt-okunur bağlar, tarar,
+   ekrana renkli özet (SORUN VAR / DİKKAT / TEMİZ) basar, ayrıntılı raporu USB'deki `TESHIS` bölümüne (`raporlar/`) yazar.
+
+Sanal makinede doğrulandı (QEMU): BIOS ve UEFI açılışı, otomatik tarama, bozuk Linux diski bulma, rapor yazma.
+Gerçek Windows diski ve gerçek donanımla henüz denenmedi.
 
 ## Testler
     python3 -m unittest tests.test_rules

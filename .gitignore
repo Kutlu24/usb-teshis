@@ -2,3 +2,4 @@ __pycache__/
 raporlar/
 teshis_raporu*
 *.pyc
+dist/
