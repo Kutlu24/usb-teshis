@@ -7,16 +7,21 @@ BOOT=/run/archiso/bootmnt
 echo; echo "=== USB TEŞHİS başlıyor — disk(ler) SALT-OKUNUR bağlanacak, hiçbir şey değiştirilmez ==="
 echo "saat: $(date '+%F %T')  çekirdek: $(uname -r)  önyükleme: $(findmnt -no SOURCE "$BOOT" 2>/dev/null)"
 
-# TESHIS bölümü: YALNIZCA açılış USB'sinin kendi diskinde (aynı diskte RESCUE1303 etiketi de olmalı).
-# Taranan (güvenilmeyen) bir disk "TESHIS" etiketi taşıyıp rapor hedefi olamaz.
-find_teshis() {
-  lsblk -nrp -o NAME,LABEL,FSTYPE,PKNAME | awk '$2=="TESHIS" && $3=="exfat" {print $1, $4}' | while read -r part pk; do
-    [ -n "$pk" ] || continue
-    if lsblk -nrp -o LABEL "$pk" 2>/dev/null | grep -qx RESCUE1303; then echo "$part"; return; fi
-  done
-}
+# TESHIS bölümü: YALNIZCA açılış USB'sinin kendi diskinde aranır (bootmnt'un bağlı olduğu disk).
+# Etiketle seçim yapılmaz: taranan (güvenilmeyen) bir disk "TESHIS"/"RESCUE1303" etiketi taklit edebilir.
+BSRC=$(findmnt -no SOURCE "$BOOT" 2>/dev/null)
+BPK=""
+if [ -n "$BSRC" ]; then
+  if [ "$(lsblk -dno TYPE "$BSRC" 2>/dev/null)" = disk ]; then BPK=$(basename "$BSRC")   # ISO tüm diskte (bölümsüz)
+  else BPK=$(lsblk -no PKNAME "$BSRC" 2>/dev/null | head -1); fi                         # ISO bir bölümde
+fi
 PART=""
-for i in 1 2 3 4 5 6 7 8; do PART=$(find_teshis | head -1); [ -n "$PART" ] && break; sleep 1; done
+if [ -n "$BPK" ]; then
+  for i in 1 2 3 4 5 6 7 8; do
+    PART=$(lsblk -nrp -o NAME,LABEL,FSTYPE "/dev/$BPK" 2>/dev/null | awk '$2=="TESHIS" && $3=="exfat"{print $1; exit}')
+    [ -n "$PART" ] && break; sleep 1
+  done
+fi
 OUT=""
 if [ -n "$PART" ]; then
   mkdir -p /mnt/teshis
@@ -32,9 +37,8 @@ if [ -z "$OUT" ]; then
   echo "(!) Rapor yalnızca RAM'e yazılıyor ($OUT), kapanınca kaybolur."
 fi
 
-# Araç: önce USB'nin TESHIS/guncel/usb-teshis klasörü (yeniden yazmadan güncelleme için), yoksa ISO'daki
+# Araç HER ZAMAN salt-okunur ISO'dan çalışır; yazılabilir TESHIS bölümündeki hiçbir kod çalıştırılmaz.
 T="$BOOT/usb-teshis"
-[ -n "$PART" ] && [ -d /mnt/teshis/guncel/usb-teshis/usb_teshis ] && T=/mnt/teshis/guncel/usb-teshis && echo "güncel araç kullanılıyor: $T"
 [ -d "$T/usb_teshis" ] || { echo "(!) Araç bulunamadı: $T"; cp "$LOG" "$OUT/son_calisma.log" 2>/dev/null; exit 1; }
 
 STAMP=$(date +%Y%m%d_%H%M%S)
