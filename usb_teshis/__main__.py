@@ -17,7 +17,7 @@ def main(argv=None):
     for r in a.root or []:
         k = detect.classify(r)
         if not k:
-            print(f"! {r}: Windows ya da Linux kökü değil", file=sys.stderr); continue
+            print(f"! {rp.clean(r)}: Windows ya da Linux kökü değil", file=sys.stderr); continue
         roots.append((r, k))
     if a.mount:
         f, n = detect.mount_all_readonly(); roots += f; notes += n
@@ -36,7 +36,7 @@ def main(argv=None):
         slug = root.strip("/").replace("/", "_") or "root"
         base = f"{a.out}_{slug}" if len(roots) > 1 else a.out
         Path(base + ".html").write_text(rp.to_html(rep)); Path(base + ".txt").write_text(rp.to_text(rep))
-        print(rp.to_text(rep)); print(f"\n-> {base}.html")
+        print(rp.to_text(rep)); print(f"\n-> {rp.clean(base)}.html")
         if any(f.severity == "kritik" for f in rep.findings): worst = 1
     return 0 if worst == 2 else 1
 

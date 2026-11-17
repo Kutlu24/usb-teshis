@@ -41,3 +41,11 @@ class T(unittest.TestCase):
         r = Report(); windows._boot_checks(str(d), r)
         self.assertTrue(any("Eksik sistem dosyası" in f.title for f in r.findings))
 if __name__ == "__main__": unittest.main()
+
+class Esc(unittest.TestCase):
+    def test_escape_stripped(self):
+        from usb_teshis import report as rp
+        r = Report(os_name="x\x1b[2Jy"); linux.scan_text("kernel: Out of memory: Killed process 1 (\x1b]0;pwn\x07)\n", "t", r)
+        out = rp.to_text(r)
+        self.assertNotIn("\x1b", out); self.assertNotIn("\x07", out)
+        self.assertNotIn("\x1b", rp.to_html(r))

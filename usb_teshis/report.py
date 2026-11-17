@@ -1,4 +1,11 @@
-import html, datetime
+import html, datetime, re
+_CTRL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f]")
+
+
+def clean(s):
+    """Strip C0/C1 control chars (incl. ESC): log lines come from an untrusted disk."""
+    return _CTRL.sub("?", str(s))
+
 LABEL = {"kritik": ("KRİTİK", "#c62828"), "uyari": ("UYARI", "#e68a00"), "bilgi": ("BİLGİ", "#1565c0")}
 
 
@@ -21,7 +28,7 @@ def to_text(report):
                   f"   Neden : {f.explanation}", f"   Öneri : {f.advice}"] + [f"   > {e}" for e in f.evidence] + [""]
     for n in report.notes:
         lines.append(f"(not) {n}")
-    return "\n".join(lines)
+    return clean("\n".join(lines))
 
 
 def to_html(report):
@@ -37,7 +44,7 @@ def to_html(report):
 <details><summary>Kanıt</summary><ul>{ev}</ul></details></section>""")
     info = "".join(f"<tr><td>{e(k)}</td><td>{e(v)}</td></tr>" for k, v in report.info.items())
     notes = "".join(f"<li>{e(n)}</li>" for n in report.notes)
-    return f"""<!doctype html><html lang="tr"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+    return clean(f"""<!doctype html><html lang="tr"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>USB Teşhis Raporu</title><style>
 body{{font:16px system-ui,sans-serif;max-width:900px;margin:0 auto;padding:16px;background:#f6f7f9;color:#1b1f23}}
 .top{{background:{col};color:#fff;padding:18px;border-radius:10px}} .top h1{{margin:0}}
@@ -46,4 +53,4 @@ code{{font-size:.8em;word-break:break-all}} table{{border-collapse:collapse}} td
 </style><div class="top"><h1>{t}</h1><p>{e(s)}</p><p>{e(report.target)} · {e(report.os_name)} · {datetime.datetime.now():%Y-%m-%d %H:%M}</p></div>
 {''.join(rows) or '<p>Bulgu yok.</p>'}
 <h2>Sistem bilgisi</h2><table>{info}</table>
-<h2>Kontrol EDİLEMEYENLER</h2><ul>{notes or '<li>—</li>'}</ul></html>"""
+<h2>Kontrol EDİLEMEYENLER</h2><ul>{notes or '<li>—</li>'}</ul></html>""")
