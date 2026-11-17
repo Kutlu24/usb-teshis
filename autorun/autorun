@@ -1,40 +1,50 @@
-#!/bin/sh
+#!/bin/bash
 # SystemRescue açılışında otomatik çalışır (root, ana konsol). Disk(ler)i salt-okunur bağlar,
-# tarar, ekrana renkli özet basar; ayrıntılı raporu USB'deki TESHIS bölümüne yazar.
+# tarar, ekrana renkli özet basar; raporu ve ÇALIŞMA GÜNLÜĞÜNÜ USB'deki TESHIS bölümüne yazar.
+LOG=/tmp/teshis_calisma.log
+exec > >(tee "$LOG") 2>&1
 BOOT=/run/archiso/bootmnt
-T="$BOOT/usb-teshis"
 echo; echo "=== USB TEŞHİS başlıyor — disk(ler) SALT-OKUNUR bağlanacak, hiçbir şey değiştirilmez ==="
-[ -d "$T/usb_teshis" ] || { echo "Araç bulunamadı: $T"; exit 1; }
+echo "saat: $(date '+%F %T')  çekirdek: $(uname -r)  önyükleme: $(findmnt -no SOURCE "$BOOT" 2>/dev/null)"
 
-# Raporlar için TESHIS bölümünü yazılabilir bağla. Bölüm YALNIZCA açılış USB'sinin kendi diskinde aranır:
-# taranan (güvenilmeyen) bir disk "TESHIS" etiketi taşıyıp rapor hedefi olamaz.
-OUT=""
-BSRC=$(findmnt -no SOURCE "$BOOT" 2>/dev/null)
-PK=""; [ -n "$BSRC" ] && PK=$(lsblk -no PKNAME "$BSRC" 2>/dev/null | head -1)
-if [ -n "$PK" ]; then
-  for i in 1 2 3 4 5; do
-    PART=$(lsblk -nrp -o NAME,LABEL,FSTYPE "/dev/$PK" 2>/dev/null | awk '$2=="TESHIS" && $3=="exfat"{print $1; exit}')
-    [ -n "$PART" ] && break; sleep 1
+# TESHIS bölümü: YALNIZCA açılış USB'sinin kendi diskinde (aynı diskte RESCUE1303 etiketi de olmalı).
+# Taranan (güvenilmeyen) bir disk "TESHIS" etiketi taşıyıp rapor hedefi olamaz.
+find_teshis() {
+  lsblk -nrp -o NAME,LABEL,FSTYPE,PKNAME | awk '$2=="TESHIS" && $3=="exfat" {print $1, $4}' | while read -r part pk; do
+    [ -n "$pk" ] || continue
+    if lsblk -nrp -o LABEL "$pk" 2>/dev/null | grep -qx RESCUE1303; then echo "$part"; return; fi
   done
-  if [ -n "$PART" ]; then
-    mkdir -p /mnt/teshis
-    if mount -t exfat -o rw,nosuid,nodev,noexec "$PART" /mnt/teshis 2>/dev/null; then
-      if [ -L /mnt/teshis/raporlar ]; then echo "(!) raporlar bir sembolik bağ: kullanılmıyor."
-      else mkdir -p /mnt/teshis/raporlar && OUT=/mnt/teshis/raporlar; fi
-    fi
-  fi
+}
+PART=""
+for i in 1 2 3 4 5 6 7 8; do PART=$(find_teshis | head -1); [ -n "$PART" ] && break; sleep 1; done
+OUT=""
+if [ -n "$PART" ]; then
+  mkdir -p /mnt/teshis
+  if mount -t exfat -o rw,nosuid,nodev,noexec "$PART" /mnt/teshis; then
+    if [ -L /mnt/teshis/raporlar ]; then echo "(!) raporlar bir sembolik bağ: kullanılmıyor."
+    else mkdir -p /mnt/teshis/raporlar && OUT=/mnt/teshis/raporlar; fi
+  else echo "(!) $PART bağlanamadı."; fi
+else
+  echo "(!) Açılış USB'sinin TESHIS bölümü bulunamadı. Bölümler:"; lsblk -o NAME,SIZE,FSTYPE,LABEL,PKNAME
 fi
 if [ -z "$OUT" ]; then
   OUT=/tmp/raporlar; mkdir -p "$OUT"
-  echo "(!) TESHIS bölümü yok/yazılamadı: rapor yalnızca RAM'e yazılıyor ($OUT), kapanınca kaybolur."
+  echo "(!) Rapor yalnızca RAM'e yazılıyor ($OUT), kapanınca kaybolur."
 fi
+
+# Araç: önce USB'nin TESHIS/guncel/usb-teshis klasörü (yeniden yazmadan güncelleme için), yoksa ISO'daki
+T="$BOOT/usb-teshis"
+[ -n "$PART" ] && [ -d /mnt/teshis/guncel/usb-teshis/usb_teshis ] && T=/mnt/teshis/guncel/usb-teshis && echo "güncel araç kullanılıyor: $T"
+[ -d "$T/usb_teshis" ] || { echo "(!) Araç bulunamadı: $T"; cp "$LOG" "$OUT/son_calisma.log" 2>/dev/null; exit 1; }
+
 STAMP=$(date +%Y%m%d_%H%M%S)
 cd "$T" && python3 -m usb_teshis --mount --live-dmesg --brief --out "$OUT/rapor_$STAMP"
 RC=$?
-sync
+echo "araç çıkış kodu: $RC"
+sync; sleep 1
+cp "$LOG" "$OUT/son_calisma.log" 2>/dev/null; sync
 echo
-case "$RC" in 0|1) ;; *) echo "(!) Araç beklenmedik bir kodla bitti: $RC" ;; esac
-echo "Ayrıntılı rapor: USB'de TESHIS bölümü > raporlar/rapor_$STAMP*.html  (tarayıcıda aç)"
-echo "Kabuğa geçmek için Enter'a bas."
+echo "Ayrıntılı rapor + günlük: USB'de TESHIS bölümü > raporlar/  (rapor_$STAMP.html)"
+echo "USB'yi çıkarıp çalışan bilgisayara tak. Kabuğa geçmek için Enter'a bas."
 read -r _
 exit 0
