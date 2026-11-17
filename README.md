@@ -15,11 +15,12 @@ günlükleri okur ve Türkçe, öncelik sıralı bir rapor (HTML+TXT) üretir.
     python3 -m usb_teshis --this-machine --days 7
 Çıkış kodu: 0 temiz/uyarı, 1 kritik bulgu var, 2 çözümlenecek sistem yok.
 
-## USB hazırlama
-1. USB'ye SystemRescue veya Ubuntu live ISO yaz (Ventoy ile ISO'yu kopyalamak yeterli).
-2. Bu klasörü USB'nin veri bölümüne kopyala (`vendor/` içindeki python-evtx dahil, internet gerekmez).
-3. Gerekli paketler canlı sistemde: python3, smartmontools, ntfs-3g (SystemRescue'da hazır).
-4. Arızalı PC'yi USB'den aç → terminalde `sudo sh /yol/teshis.sh`.
+## USB hazırlama (otomatik çalışan)
+1. **SystemRescue USB writer** ile ISO'yu yaz (yazılabilir FAT32 oluşturur; `dd` ile yazılan USB salt-okunur olur ve autorun eklenemez):
+   `sudo ./sysrescueusbwriter-x86_64.AppImage systemrescue-13.03-amd64.iso` (cihaz seç; USB TAMAMEN silinir).
+2. Aracı ve autorun'u kopyala (root gerekmez): `bash scripts/install_to_stick.sh /run/media/$USER/RESCUE1303`
+3. Arızalı PC'yi USB'den aç (Secure Boot kapalı). Araç kendiliğinden başlar: diskleri salt-okunur bağlar, tarar,
+   ekrana renkli özet (SORUN VAR / DİKKAT / TEMİZ) basar, ayrıntılı raporu USB'de `raporlar/` altına yazar.
 
 ## Testler
     python3 -m unittest tests.test_rules

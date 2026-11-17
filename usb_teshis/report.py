@@ -17,6 +17,8 @@ def summary(report):
         return "SORUN VAR", "#c62828", f"{c['kritik']} kritik bulgu var. Önce en üstteki bulgudan başla."
     if c["uyari"]:
         return "DİKKAT", "#e68a00", f"{c['uyari']} uyarı var, acil kritik hata görünmüyor."
+    if report.target.startswith("(sistem"):
+        return "KONTROL EDİLEMEDİ", "#616161", "Hiçbir işletim sistemi okunamadı; yalnızca donanım bilgisine bakıldı. Notlara bak."
     return "TEMİZ", "#2e7d32", "Okunabilen günlüklerde bilinen bir sorun bulunamadı."
 
 
@@ -54,3 +56,26 @@ code{{font-size:.8em;word-break:break-all}} table{{border-collapse:collapse}} td
 {''.join(rows) or '<p>Bulgu yok.</p>'}
 <h2>Sistem bilgisi</h2><table>{info}</table>
 <h2>Kontrol EDİLEMEYENLER</h2><ul>{notes or '<li>—</li>'}</ul></html>""")
+
+
+ANSI = {"kritik": "\033[1;37;41m", "uyari": "\033[1;30;43m", "bilgi": "\033[1;37;44m", "ok": "\033[1;37;42m"}
+
+
+def to_brief(report, top=5):
+    """Large colored banner + top findings, for the live-USB console.
+    Untrusted text (from the inspected disk) is cleaned BEFORE our own ANSI codes are added."""
+    t, _, s = summary(report)
+    key = "kritik" if t == "SORUN VAR" else "uyari" if t in ("DİKKAT", "KONTROL EDİLEMEDİ") else "ok"
+    R = "\033[0m"
+    out = ["", f"{ANSI[key]}{'':52s}{R}", f"{ANSI[key]}   {t:^46s}   {R}", f"{ANSI[key]}{'':52s}{R}",
+           f"  {s}", f"  Sistem: {clean(report.os_name)}  ({clean(report.target)})", ""]
+    for f in report.sorted()[:top]:
+        lab = LABEL[f.severity][0]
+        out += [f"{ANSI[f.severity]} {lab:^7s} {R} {clean(f.area)}: {clean(f.title)}  (x{f.count})",
+                f"          -> {clean(f.advice)}"]
+    extra = len(report.findings) - top
+    if extra > 0:
+        out.append(f"  ... ve {extra} bulgu daha (tam rapor dosyada)")
+    for n in report.notes[:4]:
+        out.append(f"  (kontrol edilemedi) {clean(n)}")
+    return "\n".join(out)

@@ -40,7 +40,6 @@ class T(unittest.TestCase):
         d = Path(tempfile.mkdtemp()); (d/"Windows/System32/config").mkdir(parents=True)
         r = Report(); windows._boot_checks(str(d), r)
         self.assertTrue(any("Eksik sistem dosyası" in f.title for f in r.findings))
-if __name__ == "__main__": unittest.main()
 
 class Esc(unittest.TestCase):
     def test_escape_stripped(self):
@@ -49,3 +48,13 @@ class Esc(unittest.TestCase):
         out = rp.to_text(r)
         self.assertNotIn("\x1b", out); self.assertNotIn("\x07", out)
         self.assertNotIn("\x1b", rp.to_html(r))
+
+class Brief(unittest.TestCase):
+    def test_brief_keeps_own_color_but_strips_log_escapes(self):
+        from usb_teshis import report as rp
+        r = Report(os_name="x\x1b[2J"); linux.scan_text("kernel: Out of memory: Killed process 1 (\x1b[31m?[evil)\n", "t", r)
+        out = rp.to_brief(r)
+        self.assertIn("\x1b[1;37;41m", out)              # our banner color is there
+        self.assertNotIn("\x1b[2J", out); self.assertNotIn("\x1b[31m", out)   # log escapes are not
+
+if __name__ == "__main__": unittest.main()

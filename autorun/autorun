@@ -1,0 +1,26 @@
+#!/bin/sh
+# SystemRescue açılışında otomatik çalışır (root, ana konsol). Disk(ler)i salt-okunur bağlar,
+# tarar, ekrana renkli özet basar, ayrıntılı raporu USB'ye (raporlar/) yazar.
+BOOT=/run/archiso/bootmnt
+T="$BOOT/usb-teshis"
+echo; echo "=== USB TEŞHİS başlıyor — disk(ler) SALT-OKUNUR bağlanacak, hiçbir şey değiştirilmez ==="
+if [ ! -d "$T/usb_teshis" ]; then echo "Araç bulunamadı: $T"; exit 1; fi
+
+# USB'ye rapor yazabilmek için yazılabilir bağla; olmazsa RAM'e yaz
+OUT="$BOOT/raporlar"
+if ! mount -o remount,rw "$BOOT" 2>/dev/null || ! mkdir -p "$OUT" 2>/dev/null; then
+  OUT=/tmp/raporlar; mkdir -p "$OUT"
+  echo "(!) USB yazılabilir değil: rapor yalnızca RAM'e yazılıyor ($OUT), kapanınca kaybolur."
+fi
+STAMP=$(date +%Y%m%d_%H%M%S)
+cd "$T" && python3 -m usb_teshis --mount --live-dmesg --brief --out "$OUT/rapor_$STAMP"
+RC=$?
+sync
+echo
+case "$RC" in
+  0) ;; 1) ;; *) echo "(!) Araç beklenmedik bir kodla bitti: $RC" ;;
+esac
+echo "Ayrıntılı rapor: USB'de raporlar/rapor_$STAMP*.html  (tarayıcıda aç)"
+echo "Kabuğa geçmek için Enter'a bas."
+read -r _ 
+exit 0
